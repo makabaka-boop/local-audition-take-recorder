@@ -1,0 +1,28 @@
+services:
+  web:
+    build: .
+    image: audition-capture-deck
+    environment:
+      # 可通过 `WEB_PORT=9000 docker compose up` 覆盖容器内监听端口
+      WEB_PORT: ${WEB_PORT:-8080}
+    ports:
+      - "${WEB_PORT:-8080}:${WEB_PORT:-8080}"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+
+  # 一次性验收服务：类型检查 + 全部 Vitest 交错用例 + 生产构建。
+  # 用法：docker compose run --rm verify
+  # 通过即退出 0；不启动长期进程、不发布端口，因此 `docker compose up`
+  # 只托管 web（verify 退出后不会被重启）。
+  verify:
+    image: node:20-alpine
+    working_dir: /workspace
+    command: sh -c "npm ci && npm run build && npm test"
+    volumes:
+      - ./:/workspace
+    environment:
+      CI: "true"
+    restart: "no"
